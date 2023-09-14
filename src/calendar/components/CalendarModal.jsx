@@ -1,9 +1,12 @@
-import { addHours } from 'date-fns'
+import { addHours, differenceInSeconds } from 'date-fns'
 import { useState } from 'react'
 import Modal from 'react-modal'
 import ReactDatePicker, { registerLocale, setDefaultLocale } from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import es from 'date-fns/locale/es'
+import { UseUiStore } from '../../hooks/UseUiStore'
+import { useEffect } from 'react'
+import { useCalendarStore } from '../../hooks'
 registerLocale('es', es)
 
 const customStyles = {
@@ -20,7 +23,8 @@ const customStyles = {
 Modal.setAppElement('#root')
 
 export const CalendarModal = () => {
-  const [isOpen, setIsOpen] = useState(true)
+  const { activeEvent, startSavingEvent  } = useCalendarStore()
+  const { isDateModalOpen, closeDateModal } = UseUiStore()
   const [formValues, setFormValues] = useState({
     title: 'Wlad',
     notes: 'Rocha',
@@ -31,15 +35,40 @@ export const CalendarModal = () => {
     setFormValues((oldState) => ({ ...oldState, [name]: value }))
   }
   const onCloseModal = () => {
-    setIsOpen(false)
+    closeDateModal()
   }
 
   const onDateChange = (event, changing) => {
     setFormValues({ ...formValues, [changing]: event })
   }
+
+  const onSubmit = async (event) => {
+    event.preventDefault()
+
+    const difference = differenceInSeconds(formValues.end, formValues.start)
+
+    if (isNaN(difference) || difference <= 0) {
+      // Swal.fire('Fechas incorrectas', 'Revisar las fechas ingresadas', 'error')
+      return
+    }
+
+    if (formValues.title.length <= 0) return
+
+    console.log(formValues)
+
+    await startSavingEvent(formValues)
+    closeDateModal()
+  }
+
+  useEffect(() => {
+    if (activeEvent !== null) {
+      setFormValues({ ...activeEvent })
+    }
+  }, [activeEvent])
+
   return (
     <Modal
-      isOpen={isOpen}
+      isOpen={isDateModalOpen}
       onRequestClose={onCloseModal}
       style={customStyles}
       className='modal'
@@ -48,7 +77,7 @@ export const CalendarModal = () => {
     >
       <h1> Nuevo evento </h1>
       <hr />
-      <form className='container'>
+      <form className='container' onSubmit={onSubmit}>
         <div className='form-group mb-2'>
           <label>Fecha y hora inicio</label>
           <ReactDatePicker
